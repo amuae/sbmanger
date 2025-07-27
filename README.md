@@ -1,172 +1,299 @@
-# Sing-box Manager
+# SBManager - Sing-box管理面板
 
-一个基于PHP的sing-box配置管理面板，支持用户管理、自动过期删除、远程配置部署等功能。
+## 项目简介
+
+SBManager是一个完整的Sing-box管理解决方案，包含主控面板和Agent系统。主控面板使用PHP 8.2 + Nginx构建，Agent使用Go语言开发，支持在纯净的Debian 12系统上无依赖运行。
+
+## 系统架构
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   主控面板       │    │   Agent         │    │   被控服务器     │
+│   PHP 8.2       │◄──►│   Go二进制       │◄──►│   Sing-box      │
+│   Nginx         │    │   无依赖         │    │   系统服务       │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
 
 ## 功能特性
 
-- ✅ 用户管理（添加、删除用户）
-- ✅ 自动生成32位随机密码
-- ✅ 用户到期时间设置
-- ✅ 自动删除过期用户
-- ✅ 配置文件备份
-- ✅ 远程配置部署到多台服务器
-- ✅ Web界面管理
-- ✅ 响应式设计
-- ✅ 用户认证系统
+### 主控面板
+- ✅ **用户管理** - 添加/删除用户，设置到期时间
+- ✅ **服务器管理** - 添加/删除被控服务器
+- ✅ **实时监控** - 查看所有服务器状态
+- ✅ **配置部署** - 一键部署配置到所有服务器
+- ✅ **用户认证** - 登录验证系统
+- ✅ **响应式设计** - 支持移动端访问
 
-## 安装
+### Agent功能
+- ✅ **系统监控** - CPU、内存、磁盘、网络状态
+- ✅ **配置管理** - 接收并应用Sing-box配置
+- ✅ **安全认证** - Token验证
+- ✅ **系统服务** - 支持systemd服务
+- ✅ **跨平台** - 支持Linux/Windows/macOS
 
-### 1. 克隆项目
+## 快速部署
 
+### 主控面板部署
+
+#### 1. 环境要求
+- PHP 8.2+
+- Nginx
+- curl扩展
+
+#### 2. 安装步骤
 ```bash
-git clone https://github.com/amuae/sbmanger.git
+# 克隆项目
+git clone https://github.com/your-repo/sbmanger.git
 cd sbmanger
+
+# 设置权限
+chmod -R 755 data logs api
+
+# 配置Nginx
+sudo cp nginx.conf.example /etc/nginx/sites-available/sbmanger
+sudo ln -s /etc/nginx/sites-available/sbmanger /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
-### 2. 配置Web服务器
+#### 3. 访问面板
+- 默认用户名: `admin`
+- 默认密码: `admin123`
+- 访问地址: `http://your-domain.com`
 
-#### Nginx配置
-复制 `nginx.conf.example` 到 `/etc/nginx/sites-available/` 并修改为你的域名和证书路径：
+### Agent部署
 
+#### 1. 在被控服务器上安装Agent
 ```bash
-sudo cp nginx.conf.example /etc/nginx/sites-available/sing-box-manager
-sudo ln -s /etc/nginx/sites-available/sing-box-manager /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl restart nginx
+# 下载Agent
+curl -L https://github.com/your-repo/releases/latest/download/agent-linux-amd64 -o /usr/local/bin/agent
+chmod +x /usr/local/bin/agent
+
+# 配置Agent
+agent config
+
+# 编辑配置文件
+nano agent-config.json
 ```
 
-#### PHP配置
-确保已安装PHP 8.2和必要的扩展：
+#### 2. 配置Agent
+```json
+{
+  "master_ip": "your-master-server-ip",
+  "master_port": 8081,
+  "agent_port": 8080,
+  "token": "your-secret-token",
+  "interval": 30
+}
+```
 
+#### 3. 启动Agent
 ```bash
-sudo apt update
-sudo apt install php8.2 php8.2-fpm php8.2-sqlite3 php8.2-curl
-sudo systemctl restart php8.2-fpm
+# 安装为系统服务
+sudo agent install
+
+# 启动服务
+sudo systemctl start sbmanager-agent
+sudo systemctl enable sbmanager-agent
 ```
 
-### 3. 设置权限
+## 使用指南
 
-```bash
-sudo chown -R www-data:www-data /var/www/sing-box-manager
-sudo chmod -R 755 /var/www/sing-box-manager
-sudo chmod -R 775 /var/www/sing-box-manager/data
-sudo chmod -R 775 /var/www/sing-box-manager/backups
-sudo chmod -R 775 /var/www/sing-box-manager/logs
-```
+### 1. 添加服务器
+1. 登录主控面板
+2. 进入"服务器管理"页面
+3. 点击"添加服务器"
+4. 填写服务器信息并获取Token
+5. 在服务器上配置Agent
 
-### 4. 访问管理面板
+### 2. 添加用户
+1. 进入"用户信息"页面
+2. 填写用户备注和到期时间
+3. 系统自动生成密码
+4. 点击"部署配置"应用到所有服务器
 
-打开浏览器访问你的域名，使用默认凭据登录：
-- 用户名: `admin`
-- 密码: `password`
+### 3. 监控服务器
+1. 进入"服务器监控"页面
+2. 查看实时状态信息
+3. 页面每30秒自动刷新
 
-## 使用说明
-
-### 添加用户
-1. 登录管理面板
-2. 在"添加新用户"表单中输入备注名称和到期时间
-3. 点击"添加用户"按钮
-4. 系统会自动生成32位随机密码
-
-### 管理服务器
-1. 点击顶部导航的"服务器管理"
-2. 添加需要部署配置的服务器信息
-3. 每台服务器需要运行agent程序
-
-### 部署配置
-1. 在用户管理页面点击"部署配置"按钮
-2. 配置会自动推送到所有已配置的服务器
-3. 服务器会自动重启sing-box服务
-
-## Agent部署
-
-### 1. 下载Agent
-从GitHub Releases下载最新版本的agent：
-
-```bash
-wget https://github.com/amuae/sbmanger/releases/latest/download/sing-box-agent.tar.gz
-tar -xzf sing-box-agent.tar.gz
-```
-
-### 2. 安装Agent
-```bash
-sudo ./install.sh
-```
-
-### 3. 配置Agent
-编辑 `/opt/sing-box-agent/update-config.php` 文件，设置你的token：
-
-```php
-define('TOKEN', 'your-secure-token-here');
-```
-
-### 4. 配置Nginx
-按照安装脚本的提示配置nginx，确保PHP-FPM正常运行。
-
-## 目录结构
+## 文件结构
 
 ```
 sbmanger/
-├── index.php              # 主管理页面
-├── login.php              # 登录页面
-├── logout.php             # 退出登录
-├── servers.php            # 服务器管理页面
-├── config.php             # 配置文件
-├── classes/
-│   ├── ConfigManager.php  # 配置管理类
-│   └── UserManager.php    # 用户管理类
-├── agent/
-│   └── update-config.php  # 远程配置更新脚本
-├── .github/
-│   └── workflows/
-│       └── build-agent.yml # GitHub Actions工作流
-├── data/                  # 数据目录（自动创建）
-├── backups/               # 配置文件备份目录（自动创建）
-├── logs/                  # 日志目录（自动创建）
-├── nginx.conf.example     # Nginx配置示例
-└── README.md              # 本文档
+├── agent/                    # Agent源码
+│   ├── main.go              # Agent主程序
+│   ├── go.mod               # Go模块
+│   ├── build.ps1            # Windows构建脚本
+│   └── README.md            # Agent文档
+├── api/                     # API接口
+│   ├── report.php           # 接收Agent数据
+│   └── config.php           # 配置部署接口
+├── classes/                 # PHP类库
+│   ├── UserManager.php      # 用户管理
+│   └── ConfigManager.php    # 配置管理
+├── data/                    # 数据文件
+│   ├── users.json           # 用户列表
+│   ├── servers.json         # 服务器列表
+│   └── agent_data.json      # Agent数据
+├── logs/                    # 日志文件
+├── index.php               # 用户管理页面
+├── servers.php             # 服务器管理页面
+├── dashboard.php           # 监控页面
+├── login.php               # 登录页面
+├── logout.php              # 退出登录
+├── config.php              # 系统配置
+└── README.md               # 本文档
 ```
 
-## 安全建议
+## API接口
 
-1. **修改默认密码**：首次登录后立即修改默认密码
-2. **使用HTTPS**：配置SSL证书，强制HTTPS访问
-3. **强Token**：为每台服务器设置复杂的token
-4. **定期备份**：定期备份配置文件和数据库
-5. **限制访问**：通过防火墙限制管理面板的访问IP
+### 主控面板API
+
+#### 接收Agent数据
+```
+POST /api/report.php
+Headers: X-Token: your-token
+Body: JSON格式的系统信息
+```
+
+#### 部署配置
+```
+POST /api/config.php
+Headers: X-Token: your-token
+Body: {"config": "sing-box配置JSON"}
+```
+
+### Agent API
+
+#### 健康检查
+```
+GET /health
+```
+
+#### 获取系统信息
+```
+GET /info
+Headers: X-Token: your-token
+```
+
+#### 更新配置
+```
+POST /config
+Headers: X-Token: your-token
+Body: {"config": "sing-box配置JSON"}
+```
+
+## 配置示例
+
+### Sing-box配置模板
+```json
+{
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": ["8.8.8.8", "1.1.1.1"]
+  },
+  "inbounds": [
+    {
+      "type": "trojan",
+      "listen": "0.0.0.0",
+      "listen_port": 443,
+      "users": [
+        {
+          "password": "user1-password",
+          "name": "用户1"
+        }
+      ]
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "direct"
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "geosite": "cn",
+        "outbound": "direct"
+      }
+    ]
+  }
+}
+```
 
 ## 故障排除
 
-### 常见问题
+### 主控面板问题
 
-1. **权限错误**：检查文件和目录权限
-2. **PHP扩展缺失**：确保安装了php-sqlite3和php-curl
-3. **配置部署失败**：检查服务器URL和token是否正确
-4. **sing-box重启失败**：检查配置文件格式是否正确
+1. **无法访问面板**
+   - 检查Nginx配置
+   - 确认PHP 8.2已安装
+   - 检查文件权限
 
-### 日志文件
+2. **登录失败**
+   - 确认用户名密码正确
+   - 检查data/admin.json文件
 
-- Web服务器日志：`/var/log/nginx/`
-- Agent日志：`/var/log/sing-box-update.log`
-- 应用日志：`logs/` 目录下
+3. **数据不更新**
+   - 检查data目录权限
+   - 查看logs/agent.log日志
 
-## 开发
+### Agent问题
 
-### 本地开发
+1. **连接失败**
+   - 检查网络连接
+   - 确认Token正确
+   - 检查防火墙设置
 
-```bash
-# 启动PHP内置服务器
-php -S localhost:8000
-```
+2. **配置部署失败**
+   - 确认Agent有root权限
+   - 检查sing-box服务状态
+   - 验证配置文件语法
 
-### 构建Agent
+## 安全建议
 
-创建新的tag会自动触发GitHub Actions构建：
+1. **修改默认密码**
+   - 立即修改admin密码
+   - 使用强密码策略
 
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
+2. **网络配置**
+   - 限制Agent端口访问
+   - 使用HTTPS传输
+
+3. **定期维护**
+   - 定期更新系统
+   - 监控日志文件
+   - 备份配置文件
+
+## 性能优化
+
+### 主控面板
+- 使用Nginx缓存静态资源
+- 启用PHP OPcache
+- 定期清理日志文件
+
+### Agent
+- 调整上报间隔
+- 限制并发连接数
+- 使用系统服务运行
+
+## 更新日志
+
+### v1.0.0
+- 初始版本发布
+- 支持用户管理
+- 支持服务器监控
+- 支持配置部署
+- 支持系统服务
+
+## 技术支持
+
+- GitHub Issues: https://github.com/your-repo/sbmanger/issues
+- 文档: https://github.com/your-repo/sbmanger/wiki
 
 ## 许可证
-
 MIT License

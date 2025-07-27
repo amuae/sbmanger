@@ -1,14 +1,14 @@
 <?php
-require_once 'config.php';
-require_once 'classes/ConfigManager.php';
-require_once 'classes/UserManager.php';
-
 session_start();
 
 if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
     header('Location: login.php');
     exit;
 }
+
+require_once 'config.php';
+require_once 'classes/ConfigManager.php';
+require_once 'classes/UserManager.php';
 
 $configManager = new ConfigManager();
 $userManager = new UserManager();
@@ -42,20 +42,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// 检查过期用户并自动删除
+// 检查过期用户
 $userManager->checkExpiredUsers();
 
-// 获取消息
-if (isset($_GET['message'])) {
-    $message = $_GET['message'];
-}
+// 获取服务器列表
+$servers = $configManager->getServers();
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sing-box 用户管理</title>
+    <title>Sing-box 用户管理 - 主控面板</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
@@ -75,10 +73,13 @@ if (isset($_GET['message'])) {
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand" href="#">
+            <a class="navbar-brand" href="index.php">
                 <i class="bi bi-shield-check"></i> Sing-box 管理面板
             </a>
             <div class="navbar-nav ms-auto">
+                <a class="nav-link active" href="index.php">用户信息</a>
+                <a class="nav-link" href="servers.php">服务器管理</a>
+                <a class="nav-link" href="dashboard.php">服务器监控</a>
                 <a class="nav-link" href="logout.php">
                     <i class="bi bi-box-arrow-right"></i> 退出登录
                 </a>
@@ -126,11 +127,11 @@ if (isset($_GET['message'])) {
                         <form method="POST" onsubmit="return confirm('确定要部署配置到所有服务器吗？')">
                             <input type="hidden" name="action" value="update_config">
                             <button type="submit" class="btn btn-success w-100">
-                                <i class="bi bi-cloud-upload"></i> 部署配置
+                                <i class="bi bi-cloud-upload"></i> 部署配置到所有服务器
                             </button>
                         </form>
                         <small class="text-muted mt-2 d-block">
-                            当前服务器数量: <?php echo count(ConfigManager::getServers()); ?>
+                            当前服务器数量: <?php echo count($servers); ?>
                         </small>
                     </div>
                 </div>

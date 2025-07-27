@@ -1,7 +1,4 @@
 <?php
-require_once 'config.php';
-require_once 'classes/ConfigManager.php';
-
 session_start();
 
 if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
@@ -9,8 +6,11 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
     exit;
 }
 
+require_once 'config.php';
+require_once 'classes/ConfigManager.php';
+
 $configManager = new ConfigManager();
-$servers = ConfigManager::getServers();
+$servers = $configManager->getServers();
 $message = '';
 
 // 处理表单提交
@@ -19,13 +19,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         switch ($_POST['action']) {
             case 'add_server':
                 $name = $_POST['name'];
-                $url = $_POST['url'];
-                $token = $_POST['token'];
+                $ip = $_POST['ip'];
+                $port = $_POST['port'];
+                $token = bin2hex(random_bytes(16));
                 
                 $servers[] = [
                     'name' => $name,
-                    'url' => $url,
-                    'token' => $token
+                    'ip' => $ip,
+                    'port' => $port,
+                    'token' => $token,
+                    'added_date' => date('Y-m-d H:i:s')
                 ];
                 
                 file_put_contents(SERVERS_FILE, json_encode($servers, JSON_PRETTY_PRINT));
@@ -41,8 +44,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = '服务器删除成功';
                 }
                 break;
+                
+            case 'test_connection':
+                $index = $_POST['index'];
+                if (isset($servers[$index])) {
+                    $server = $servers[$index];
+                    $url = "http://{$server['ip']}:{$server['port']}/health";
+                    
+                    $ch = curl_init($url);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    $response = curl_exec($ch);
+                    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                    
+                    $message = ($httpCode == 200) ? '连接成功' : '连接失败';
+                }
+                break;
         }
-        
         header("Location: servers.php?message=" . urlencode($message));
         exit;
     }
@@ -68,6 +87,13 @@ if (isset($_GET['message'])) {
             box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
             border: 1px solid rgba(0, 0, 0, 0.125);
         }
+        .deploy-command {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -77,8 +103,9 @@ if (isset($_GET['message'])) {
                 <i class="bi bi-shield-check"></i> Sing-box 管理面板
             </a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="index.php">用户管理</a>
+                <a class="nav-link" href="index.php">用户信息</a>
                 <a class="nav-link active" href="servers.php">服务器管理</a>
+                <a class="nav-link" href="dashboard.php">服务器监控</a>
                 <a class="nav-link" href="logout.php">
                     <i class="bi bi-box-arrow-right"></i> 退出登录
                 </a>
@@ -108,19 +135,40 @@ if (isset($_GET['message'])) {
                                 <input type="text" class="form-control" id="name" name="name" required>
                             </div>
                             <div class="mb-3">
-                                <label for="url" class="form-label">服务器URL</label>
-                                <input type="url" class="form-control" id="url" name="url" 
-                                       placeholder="http://your-server.com" required>
+                                <label for="ip" class="form-label">服务器IP</label>
+                                <input type="text" class="form-control" id="ip" name="ip" placeholder="192.168.1.100" required>
                             </div>
                             <div class="mb-3">
-                                <label for="token" class="form-label">Token</label>
-                                <input type="text" class="form-control" id="token" name="token" 
-                                       placeholder="从服务器获取的token" required>
+                                <label for="port" class="form-label">Agent端口</label>
+                                <input type="number" class="form-control" id="port" name="port" value="8080" required>
                             </div>
                             <button type="submit" class="btn btn-primary w-100">
                                 <i class="bi bi-plus-circle"></i> 添加服务器
                             </button>
                         </form>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">快速部署Agent</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">在Debian 12服务器上运行以下命令：</p>
+                        <div class="deploy-command">
+                            <strong>Linux AMD64:</strong><br>
+                            curl -L https://github.com/your-repo/releases/latest/download/agent-linux-amd64 -o /usr/local/bin/agent && chmod +x /usr/local/bin/agent && agent config
+                        </div>
+                        <hr>
+                        <div class="deploy-command">
+                            <strong>Linux ARM64:</strong><br>
+                            curl -L https://github.com/your-repo/releases/latest/download/agent-linux-arm64 -o /usr/local/bin/agent && chmod +x /usr/local/bin/agent && agent config
+                        </div>
+                        <hr>
+                        <div class="deploy-command">
+                            <strong>安装为服务:</strong><br>
+                            sudo agent install
+                        </div>
                     </div>
                 </div>
             </div>
@@ -143,7 +191,10 @@ if (isset($_GET['message'])) {
                                     <thead>
                                         <tr>
                                             <th>名称</th>
-                                            <th>URL</th>
+                                            <th>IP地址</th>
+                                            <th>端口</th>
+                                            <th>Token</th>
+                                            <th>状态</th>
                                             <th>操作</th>
                                         </tr>
                                     </thead>
@@ -151,12 +202,22 @@ if (isset($_GET['message'])) {
                                         <?php foreach ($servers as $index => $server): ?>
                                             <tr>
                                                 <td><?php echo htmlspecialchars($server['name']); ?></td>
+                                                <td><?php echo htmlspecialchars($server['ip']); ?></td>
+                                                <td><?php echo htmlspecialchars($server['port']); ?></td>
                                                 <td>
-                                                    <small><?php echo htmlspecialchars($server['url']); ?></small>
+                                                    <small class="font-monospace"><?php echo substr($server['token'], 0, 8); ?>...</small>
                                                 </td>
                                                 <td>
-                                                    <form method="POST" style="display: inline;" 
-                                                          onsubmit="return confirm('确定要删除此服务器吗？')">
+                                                    <form method="POST" style="display: inline;">
+                                                        <input type="hidden" name="action" value="test_connection">
+                                                        <input type="hidden" name="index" value="<?php echo $index; ?>">
+                                                        <button type="submit" class="btn btn-sm btn-outline-primary">
+                                                            <i class="bi bi-wifi"></i> 测试
+                                                        </button>
+                                                    </form>
+                                                </td>
+                                                <td>
+                                                    <form method="POST" style="display: inline;" onsubmit="return confirm('确定要删除此服务器吗？')">
                                                         <input type="hidden" name="action" value="delete_server">
                                                         <input type="hidden" name="index" value="<?php echo $index; ?>">
                                                         <button type="submit" class="btn btn-sm btn-danger">

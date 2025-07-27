@@ -1,120 +1,153 @@
 <?php
 class ConfigManager {
+    private $serversFile;
     private $configFile;
-    private $backupDir;
     
     public function __construct() {
+        $this->serversFile = SERVERS_FILE;
         $this->configFile = CONFIG_FILE;
-        $this->backupDir = BACKUP_DIR;
+    }
+    
+    public function getServers() {
+        if (!file_exists($this->serversFile)) {
+            return [];
+        }
+        
+        return json_decode(file_get_contents($this->serversFile), true) ?: [];
     }
     
     public function getConfig() {
         if (!file_exists($this->configFile)) {
-            throw new Exception("配置文件不存在");
+            return $this->getDefaultConfig();
         }
         
-        $config = json_decode(file_get_contents($this->configFile), true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new Exception("配置文件格式错误");
+        return json_decode(file_get_contents($this->configFile), true) ?: $this->getDefaultConfig();
+    }
+    
+    public function getDefaultConfig() {
+        return [
+            'log' => [
+                'level' => 'info',
+                'timestamp' => true
+            ],
+            'dns' => [
+                'servers' => [
+                    '8.8.8.8',
+                    '1.1.1.1'
+                ]
+            ],
+            'inbounds' => [
+                [
+                    'type' => 'trojan',
+                    'listen' => '0.0.0.0',
+                    'listen_port' => 443,
+                    'users' => []
+                ]
+            ],
+            'outbounds' => [
+                [
+                    'type' => 'direct',
+                    'tag' => 'direct'
+                ],
+                [
+                    'type' => 'block',
+                    'tag' => 'block'
+                ]
+            ],
+            'route' => [
+                'rules' => [
+                    [
+                        'geosite' => 'cn',
+                        'outbound' => 'direct'
+                    ],
+                    [
+                        'geoip' => 'cn',
+                        'outbound' => 'direct'
+                    ]
+                ]
+            ]
+        ];
+    }
+    
+    public function generateConfig() {
+        $userManager = new UserManager();
+        $users = $userManager->getActiveUsers();
+        
+        $config = $this->getDefaultConfig();
+        
+        // 添加用户到配置
+        foreach ($users as $user) {
+            $config['inbounds'][0]['users'][] = [
+                'password' => $user['password'],
+                'name' => $user['name']
+            ];
         }
         
-        return $config;
-    }
-    
-    public function saveConfig($config) {
-        // 创建备份
-        $this->createBackup();
-        
-        // 保存新配置
-        $json = json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-        if (file_put_contents($this->configFile, $json) === false) {
-            throw new Exception("无法保存配置文件");
-        }
-        
-        return true;
-    }
-    
-    public function createBackup() {
-        if (!file_exists($this->configFile)) {
-            return false;
-        }
-        
-        $backupFile = $this->backupDir . 'config_' . date('Y-m-d_H-i-s') . '.json';
-        return copy($this->configFile, $backupFile);
-    }
-    
-    public function getUsersFromConfig() {
-        $config = $this->getConfig();
-        return $config['inbounds'][0]['users'] ?? [];
-    }
-    
-    public function updateUsersInConfig($users) {
-        $config = $this->getConfig();
-        $config['inbounds'][0]['users'] = $users;
-        return $this->saveConfig($config);
-    }
-    
-    public static function getServers() {
-        if (!file_exists(SERVERS_FILE)) {
-            return [];
-        }
-        
-        $servers = json_decode(file_get_contents(SERVERS_FILE), true);
-        return is_array($servers) ? $servers : [];
+        return json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     }
     
     public function deployConfig() {
-        $servers = self::getServers();
-        if (empty($servers)) {
-            return false;
-        }
-        
-        $config = $this->getConfig();
-        $configJson = json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        $config = $this->generateConfig();
+        $servers = $this->getServers();
         
         $successCount = 0;
+        $totalCount = count($servers);
+        
         foreach ($servers as $server) {
-            if ($this->deployToServer($server, $configJson)) {
+            $url = "http://{$server['ip']}:{$server['port']}/config";
+            
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['config' => $config]));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json',
+                'X-Token: ' . $server['token']
+            ]);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            
+            if ($httpCode == 200) {
                 $successCount++;
             }
         }
         
-        // 记录部署日志
-        $this->logDeployment($successCount, count($servers));
-        
-        return $successCount === count($servers);
+        return $successCount === $totalCount;
     }
     
-    private function deployToServer($server, $configJson) {
-        $url = rtrim($server['url'], '/') . '/update-config.php';
-        $token = $server['token'];
+    public function testServerConnection($server) {
+        $url = "http://{$server['ip']}:{$server['port']}/health";
         
-        $data = [
-            'token' => $token,
-            'config' => $configJson
-        ];
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
         
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => http_build_query($data),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_SSL_VERIFYPEER => false
-        ]);
+        return $httpCode == 200;
+    }
+    
+    public function getServerStatus($server) {
+        $url = "http://{$server['ip']}:{$server['port']}/info";
+        
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['X-Token: ' . $server['token']]);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
         
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
         
-        return $httpCode === 200 && $response === 'OK';
-    }
-    
-    private function logDeployment($success, $total) {
-        $logFile = 'logs/deployment_' . date('Y-m-d') . '.log';
-        $logEntry = date('Y-m-d H:i:s') . " - 部署: {$success}/{$total} 成功\n";
-        file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
+        if ($httpCode == 200) {
+            return json_decode($response, true);
+        }
+        
+        return null;
     }
 }
 ?>
