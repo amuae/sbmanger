@@ -37,19 +37,19 @@ jobs:
         chmod +x agent-darwin-amd64
     
     - name: Upload Linux Build
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: agent-linux-amd64
         path: agent/agent-linux-amd64
     
     - name: Upload Windows Build
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: agent-windows-amd64.exe
         path: agent/agent-windows-amd64.exe
     
     - name: Upload macOS Build
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: agent-darwin-amd64
         path: agent/agent-darwin-amd64
