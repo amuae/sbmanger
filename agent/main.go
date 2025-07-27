@@ -68,7 +68,7 @@ type ConfigUpdate struct {
 }
 
 var (
-	configFile = "agent-config.json"
+	configFile = "/opt/sbagent/agent-config.json"
 	config     Config
 	lastNetIO  *gopsnet.IOCountersStat
 )
@@ -153,6 +153,9 @@ func createDefaultConfig() {
 		Interval:   30,
 	}
 
+	// 创建目录
+	os.MkdirAll("/opt/sbagent", 0755)
+
 	data, _ := json.MarshalIndent(defaultConfig, "", "  ")
 	if err := ioutil.WriteFile(configFile, data, 0644); err != nil {
 		log.Fatalf("创建配置文件失败: %v", err)
@@ -225,8 +228,11 @@ func configHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 创建sing-box配置目录
+	os.MkdirAll("/opt/sbmanger", 0755)
+
 	// 写入sing-box配置
-	if err := ioutil.WriteFile("/root/sing-box/config.json", []byte(update.Config), 0644); err != nil {
+	if err := ioutil.WriteFile("/opt/sbmanger/config.json", []byte(update.Config), 0644); err != nil {
 		http.Error(w, "Failed to write config", http.StatusInternalServerError)
 		return
 	}
@@ -380,6 +386,9 @@ func uninstallService() {
 }
 
 func installLinuxService() {
+	// 创建Agent目录
+	os.MkdirAll("/opt/sbagent", 0755)
+
 	serviceContent := `[Unit]
 Description=SBManager Agent
 After=network.target
@@ -387,8 +396,8 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/sbmanger-agent
-ExecStart=/opt/sbmanger-agent/agent
+WorkingDirectory=/opt/sbagent
+ExecStart=/opt/sbagent/agent
 Restart=always
 RestartSec=10
 
@@ -405,6 +414,7 @@ WantedBy=multi-user.target
 	fmt.Println("sudo systemctl daemon-reload")
 	fmt.Println("sudo systemctl enable sbmanger-agent")
 	fmt.Println("sudo systemctl start sbmanger-agent")
+	fmt.Println("sudo systemctl status sbmanger-agent")
 }
 
 func uninstallLinuxService() {
@@ -430,5 +440,7 @@ func showHelp() {
   %s help      显示帮助信息
 
 配置文件: %s
+Agent目录: /opt/sbagent
+主控目录: /opt/sbmanger
 `, os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], configFile)
 }
