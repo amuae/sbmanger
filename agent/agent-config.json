@@ -2,6 +2,6 @@
   "master_ip": "127.0.0.1",
   "master_port": 8081,
   "agent_port": 8080,
-  "token": "your-secret-token-here",
+  "token": "your-secret-token",
   "interval": 30
 }
