@@ -1,9 +1,10 @@
-name: Build and Release Agent
+name: Build Agent Package
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -92,11 +93,9 @@ jobs:
         # 创建压缩包
         tar -czf sing-box-agent.tar.gz -C agent-package .
     
-    - name: Release
-      uses: softprops/action-gh-release@v2
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
       with:
-        files: sing-box-agent.tar.gz
-        name: Release ${{ github.ref_name }}
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: sing-box-agent
+        path: sing-box-agent.tar.gz
+        retention-days: 30
