@@ -5,16 +5,7 @@
       "tag": "trojan-1",
       "listen": "::",
       "listen_port": 5505,
-      "users": [
-        {
-          "name": "friend1-2026-5-10",
-          "password": "iFPOCtMxtAlIKsdjYnpt"
-        },
-        {
-          "name": "miine-2099-12-31",
-          "password": "WMyPwmzLotcnMK1mjOWTRiF0OIOmxajD"
-        }
-      ],
+      "users": [],
       "tls": {
         "enabled": true,
         "server_name": "down.dingtalk.com",
