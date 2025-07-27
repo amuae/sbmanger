@@ -1,0 +1,55 @@
+name: Test Build
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+    
+    - name: Build Agent for Linux
+      run: |
+        cd agent
+        go mod tidy
+        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o agent-linux-amd64
+        chmod +x agent-linux-amd64
+    
+    - name: Build Agent for Windows
+      run: |
+        cd agent
+        CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o agent-windows-amd64.exe
+    
+    - name: Build Agent for macOS
+      run: |
+        cd agent
+        CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o agent-darwin-amd64
+        chmod +x agent-darwin-amd64
+    
+    - name: Upload Linux Build
+      uses: actions/upload-artifact@v3
+      with:
+        name: agent-linux-amd64
+        path: agent/agent-linux-amd64
+    
+    - name: Upload Windows Build
+      uses: actions/upload-artifact@v3
+      with:
+        name: agent-windows-amd64.exe
+        path: agent/agent-windows-amd64.exe
+    
+    - name: Upload macOS Build
+      uses: actions/upload-artifact@v3
+      with:
+        name: agent-darwin-amd64
+        path: agent/agent-darwin-amd64
