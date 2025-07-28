@@ -160,91 +160,212 @@ if (!file_exists(SERVERS_FILE)) {
         <div id="servers-tab" class="tab-content" style="display: none;">
             <div class="d-flex justify-content-between mb-3">
                 <h3>服务器管理</h3>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addServerModal">
-                    <i class="bi bi-plus"></i> 添加服务器
-                </button>
+                <div>
+                    <button class="btn btn-success me-2" onclick="deployAllServers()">
+                        <i class="bi bi-cloud-upload"></i> 一键全部分发
+                    </button>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addServerModal">
+                        <i class="bi bi-plus"></i> 添加服务器
+                    </button>
+                </div>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">SSH密钥管理</h5>
+                            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addKeyModal">
+                                <i class="bi bi-plus"></i> 添加密钥
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="row" id="keys-container">
+                                <!-- 密钥卡片将通过AJAX加载 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <div class="row" id="servers-container">
                 <!-- 服务器卡片将通过AJAX加载 -->
             </div>
         </div>
+
+        <!-- 添加用户模态框 -->
+        <div class="modal fade" id="addUserModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">添加用户</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addUserForm">
+                            <div class="mb-3">
+                                <label class="form-label">用户名</label>
+                                <input type="text" class="form-control" name="username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">到期日期</label>
+                                <input type="date" class="form-control" name="expiry_date" required>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-primary" onclick="addUser()">添加</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 添加服务器模态框 -->
+        <div class="modal fade" id="addServerModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">添加服务器</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addServerForm">
+                            <div class="mb-3">
+                                <label class="form-label">备注</label>
+                                <input type="text" class="form-control" name="remark" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">IP地址</label>
+                                <input type="text" class="form-control" name="ip" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">端口</label>
+                                <input type="number" class="form-control" name="port" value="22" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">用户名</label>
+                                <input type="text" class="form-control" name="username" value="root" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">认证方式</label>
+                                <select class="form-select" name="auth_type" onchange="toggleAuthFields()">
+                                    <option value="password">密码认证</option>
+                                    <option value="key_id">选择已有密钥</option>
+                                    <option value="key_content">直接输入密钥</option>
+                                </select>
+                            </div>
+                            <div class="mb-3" id="password-field">
+                                <label class="form-label">密码</label>
+                                <input type="password" class="form-control" name="password">
+                            </div>
+                            <div class="mb-3" id="key-id-field" style="display: none;">
+                                <label class="form-label">选择密钥</label>
+                                <select class="form-select" name="key_id">
+                                    <option value="">请选择密钥</option>
+                                </select>
+                            </div>
+                            <div class="mb-3" id="key-content-field" style="display: none;">
+                                <label class="form-label">SSH私钥内容</label>
+                                <textarea class="form-control" name="key_content" rows="4" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-primary" onclick="addServer()">添加</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 添加密钥模态框 -->
+        <div class="modal fade" id="addKeyModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">添加SSH密钥</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <ul class="nav nav-tabs" id="keyTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload-key" type="button" role="tab">文件上传</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="text-tab" data-bs-toggle="tab" data-bs-target="#text-key" type="button" role="tab">文本输入</button>
+                            </li>
+                        </ul>
+                        <div class="tab-content mt-3" id="keyTabContent">
+                            <div class="tab-pane fade show active" id="upload-key" role="tabpanel">
+                                <form id="addKeyFormUpload" enctype="multipart/form-data">
+                                    <div class="mb-3">
+                                        <label class="form-label">密钥名称</label>
+                                        <input type="text" class="form-control" name="name" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">备注</label>
+                                        <input type="text" class="form-control" name="remark">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">选择私钥文件</label>
+                                        <input type="file" class="form-control" name="key_file" accept=".key,.pem,.ppk" required>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="tab-pane fade" id="text-key" role="tabpanel">
+                                <form id="addKeyFormText">
+                                    <div class="mb-3">
+                                        <label class="form-label">密钥名称</label>
+                                        <input type="text" class="form-control" name="name" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">备注</label>
+                                        <input type="text" class="form-control" name="remark">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">私钥内容</label>
+                                        <textarea class="form-control" name="content" rows="6" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-primary" onclick="addKey()">添加</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 一键全部分发模态框 -->
+        <div class="modal fade" id="deployAllModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">一键全部分发配置</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <div class="progress">
+                                <div class="progress-bar" role="progressbar" style="width: 0%">0%</div>
+                            </div>
+                        </div>
+                        <div class="log-container" style="height: 400px; overflow-y: auto; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 10px;">
+                            <div id="deployAllLog"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="js/app.js"></script>
     </main>
-
-    <!-- 添加用户模态框 -->
-    <div class="modal fade" id="addUserModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">添加用户</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="addUserForm">
-                        <div class="mb-3">
-                            <label class="form-label">用户名</label>
-                            <input type="text" class="form-control" name="username" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">到期日期</label>
-                            <input type="date" class="form-control" name="expiry_date" required>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" onclick="addUser()">添加</button>
-                </div>
-            </div>
-        </div>
-    </div>
->>>>>>> REPLACE
-
-    <!-- 添加服务器模态框 -->
-    <div class="modal fade" id="addServerModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">添加服务器</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="addServerForm">
-                        <div class="mb-3">
-                            <label class="form-label">备注</label>
-                            <input type="text" class="form-control" name="remark" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">IP地址</label>
-                            <input type="text" class="form-control" name="ip" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">端口</label>
-                            <input type="number" class="form-control" name="port" value="22" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">用户名</label>
-                            <input type="text" class="form-control" name="username" value="root" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">密码</label>
-                            <input type="password" class="form-control" name="password">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">或使用密钥</label>
-                            <textarea class="form-control" name="key" rows="3" placeholder="SSH私钥内容"></textarea>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" onclick="addServer()">添加</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="js/app.js"></script>
 </body>
 </html>

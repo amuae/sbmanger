@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadUsers();
             } else {
                 loadServers();
+                loadKeys();
             }
         });
     });
@@ -152,6 +153,57 @@ function loadServers() {
     .catch(error => console.error('Error loading servers:', error));
 }
 
+function loadKeys() {
+    fetch('api/keys.php')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('keys-container');
+            container.innerHTML = '';
+            
+            if (data.keys.length === 0) {
+                container.innerHTML = '<div class="col-12 text-center text-muted">暂无密钥</div>';
+                return;
+            }
+            
+            data.keys.forEach(key => {
+                const col = document.createElement('div');
+                col.className = 'col-md-3 mb-3';
+                col.innerHTML = `
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">${key.name}</h6>
+                            <p class="card-text">
+                                <small class="text-muted">${key.remark || '无备注'}</small><br>
+                                <small class="text-muted">创建时间: ${key.created_at}</small>
+                            </p>
+                            <button class="btn btn-sm btn-danger" onclick="deleteKey('${key.id}')">
+                                <i class="bi bi-trash"></i> 删除
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(col);
+            });
+            
+            // 更新服务器添加模态框中的密钥选择
+            updateKeySelectOptions(data.keys);
+        })
+    .catch(error => console.error('Error loading keys:', error));
+}
+
+function updateKeySelectOptions(keys) {
+    const select = document.querySelector('select[name="key_id"]');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">请选择密钥</option>';
+    keys.forEach(key => {
+        const option = document.createElement('option');
+        option.value = key.id;
+        option.textContent = key.name + (key.remark ? ` - ${key.remark}` : '');
+        select.appendChild(option);
+    });
+}
+
 function addServer() {
     const form = document.getElementById('addServerForm');
     const formData = new FormData(form);
@@ -194,6 +246,124 @@ function deleteServer(index) {
         console.error('Error:', error);
         alert('删除服务器失败');
     });
+}
+
+function addKey() {
+    const activeTab = document.querySelector('#keyTabs .nav-link.active').id;
+    let form, formData;
+    
+    if (activeTab === 'upload-tab') {
+        form = document.getElementById('addKeyFormUpload');
+        formData = new FormData(form);
+    } else {
+        form = document.getElementById('addKeyFormText');
+        formData = new FormData(form);
+    }
+    
+    fetch('api/keys.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            form.reset();
+            bootstrap.Modal.getInstance(document.getElementById('addKeyModal')).hide();
+            loadKeys();
+        } else {
+            alert(data.message || '添加密钥失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('添加密钥失败');
+    });
+}
+
+function deleteKey(keyId) {
+    if (!confirm('确定要删除这个密钥吗？')) return;
+    
+    fetch(`api/keys.php?id=${keyId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadKeys();
+            loadServers(); // 重新加载服务器以更新密钥选择
+        } else {
+            alert(data.message || '删除密钥失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('删除密钥失败');
+    });
+}
+
+function toggleAuthFields() {
+    const authType = document.querySelector('select[name="auth_type"]').value;
+    const passwordField = document.getElementById('password-field');
+    const keyIdField = document.getElementById('key-id-field');
+    const keyContentField = document.getElementById('key-content-field');
+    
+    passwordField.style.display = authType === 'password' ? 'block' : 'none';
+    keyIdField.style.display = authType === 'key_id' ? 'block' : 'none';
+    keyContentField.style.display = authType === 'key_content' ? 'block' : 'none';
+}
+
+function deployAllServers() {
+    if (!confirm('确定要将配置分发到所有服务器吗？')) return;
+    
+    const modal = new bootstrap.Modal(document.getElementById('deployAllModal'));
+    modal.show();
+    
+    const logContainer = document.querySelector('#deployAllModal .log-container');
+    const logDiv = document.getElementById('deployAllLog');
+    const progressBar = document.querySelector('#deployAllModal .progress-bar');
+    
+    logDiv.innerHTML = '';
+    progressBar.style.width = '0%';
+    progressBar.textContent = '0%';
+    
+    const eventSource = new EventSource('api/deploy-all.php');
+    
+    eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        
+        const logEntry = document.createElement('div');
+        logEntry.innerHTML = `<small class="text-muted">[${data.timestamp}]</small> ${data.message}`;
+        logDiv.appendChild(logEntry);
+        
+        logContainer.scrollTop = logContainer.scrollHeight;
+        
+        if (data.progress !== undefined) {
+            progressBar.style.width = data.progress + '%';
+            progressBar.textContent = data.progress + '%';
+        }
+        
+        if (data.type === 'complete' || data.type === 'error') {
+            eventSource.close();
+            
+            if (data.type === 'complete') {
+                progressBar.className = 'progress-bar bg-success';
+                setTimeout(() => {
+                    modal.hide();
+                    loadServers();
+                }, 2000);
+            } else if (data.type === 'error') {
+                progressBar.className = 'progress-bar bg-danger';
+            }
+        }
+    };
+    
+    eventSource.onerror = function() {
+        eventSource.close();
+        const logEntry = document.createElement('div');
+        logEntry.innerHTML = '<small class="text-muted">[连接错误]</small> 部署连接中断';
+        logDiv.appendChild(logEntry);
+        progressBar.className = 'progress-bar bg-danger';
+    };
 }
 
 function deployConfig(serverIndex) {

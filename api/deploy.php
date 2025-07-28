@@ -120,15 +120,13 @@ function buildSSHCommand($server, $localFile, $remotePath) {
     $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
     
     // 构建完整的SSH命令 - 完全自动化，无需人工干预
-    if (!empty($server['key'])) {
-        // 使用密钥认证
-        $keyFile = tempnam(sys_get_temp_dir(), 'ssh_key_');
-        file_put_contents($keyFile, $server['key']);
-        chmod($keyFile, 0600);
+    if (!empty($server['key_path']) && file_exists($server['key_path'])) {
+    // 使用密钥认证 - 直接使用存储的密钥文件路径
+    $keyPath = escapeshellarg($server['key_path']);
         
         $command = sprintf(
             'ssh -i %s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p %d %s@%s "%s && cat > %s" < %s',
-            escapeshellarg($keyFile),
+            $keyPath,
             $port,
             $username,
             $ip,
@@ -137,12 +135,6 @@ function buildSSHCommand($server, $localFile, $remotePath) {
             escapeshellarg($localFile)
         );
         
-        // 清理密钥文件
-        register_shutdown_function(function() use ($keyFile) {
-            if (file_exists($keyFile)) {
-                unlink($keyFile);
-            }
-        });
     } else {
         // 使用密码认证 - 完全自动化
         if ($isWindows) {

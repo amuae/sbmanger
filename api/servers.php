@@ -9,6 +9,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 define('SERVERS_FILE', '../data/servers.json');
+define('KEYS_FILE', '../data/keys.json');
 
 // 确保文件存在
 if (!file_exists(SERVERS_FILE)) {
@@ -48,16 +49,29 @@ function addServer() {
     $ip = $_POST['ip'] ?? '';
     $port = intval($_POST['port'] ?? 22);
     $username = $_POST['username'] ?? 'root';
+    $auth_type = $_POST['auth_type'] ?? 'password';
     $password = $_POST['password'] ?? '';
-    $key = $_POST['key'] ?? '';
+    $key_id = $_POST['key_id'] ?? '';
+    $key_content = $_POST['key_content'] ?? '';
     
     if (empty($remark) || empty($ip) || empty($username)) {
         echo json_encode(['success' => false, 'message' => '参数不完整']);
         return;
     }
     
-    if (empty($password) && empty($key)) {
-        echo json_encode(['success' => false, 'message' => '密码或密钥必须提供一项']);
+    // 根据认证类型验证
+    if ($auth_type === 'password' && empty($password)) {
+        echo json_encode(['success' => false, 'message' => '密码不能为空']);
+        return;
+    }
+    
+    if ($auth_type === 'key_id' && empty($key_id)) {
+        echo json_encode(['success' => false, 'message' => '请选择密钥']);
+        return;
+    }
+    
+    if ($auth_type === 'key_content' && empty($key_content)) {
+        echo json_encode(['success' => false, 'message' => '密钥内容不能为空']);
         return;
     }
     
@@ -71,14 +85,34 @@ function addServer() {
         }
     }
     
+    // 处理密钥路径
+    $key_path = '';
+    if ($auth_type === 'key_id') {
+        // 从keys.json获取密钥路径
+        $keysData = json_decode(file_get_contents(KEYS_FILE), true);
+        foreach ($keysData['keys'] as $k) {
+            if ($k['id'] === $key_id) {
+                if (file_exists($k['file_path'])) {
+                    $key_path = $k['file_path'];
+                }
+                break;
+            }
+        }
+        if (empty($key_path)) {
+            echo json_encode(['success' => false, 'message' => '指定的密钥不存在']);
+            return;
+        }
+    }
+    
     // 添加新服务器
     $newServer = [
         'remark' => $remark,
         'ip' => $ip,
         'port' => $port,
         'username' => $username,
+        'auth_type' => $auth_type,
         'password' => $password,
-        'key' => $key
+        'key_path' => $key_path
     ];
     
     $serversData['servers'][] = $newServer;
@@ -125,15 +159,13 @@ function checkServerStatus($server) {
     $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
     
     // 构建SSH测试命令 - 完全自动化，无需人工干预
-    if (!empty($server['key'])) {
+    if (!empty($server['key_path']) && file_exists($server['key_path'])) {
         // 使用密钥认证
-        $keyFile = tempnam(sys_get_temp_dir(), 'ssh_key_test_');
-        file_put_contents($keyFile, $server['key']);
-        chmod($keyFile, 0600);
+        $keyPath = escapeshellarg($server['key_path']);
         
         $command = sprintf(
             'ssh -i %s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -p %d %s@%s "echo SSH_OK" 2>&1',
-            escapeshellarg($keyFile),
+            $keyPath,
             $port,
             $username,
             $ip
@@ -142,11 +174,6 @@ function checkServerStatus($server) {
         $output = [];
         $returnCode = 0;
         exec($command, $output, $returnCode);
-        
-        // 清理密钥文件
-        if (file_exists($keyFile)) {
-            unlink($keyFile);
-        }
         
         return $returnCode === 0 && !empty($output) && trim($output[0]) === 'SSH_OK';
     } else {
@@ -191,3 +218,4 @@ function checkServerStatus($server) {
         return $returnCode === 0 && !empty($output) && trim($output[0]) === 'SSH_OK';
     }
 }
+?>
