@@ -34,13 +34,17 @@ if (!file_exists(SERVERS_FILE)) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        .sidebar {
-            min-height: 100vh;
+        body {
+            padding-top: 60px;
+        }
+        .navbar {
             background-color: #f8f9fa;
+            box-shadow: 0 2px 4px rgba(0,0,0,.1);
         }
         .nav-link.active {
             background-color: #0d6efd;
             color: white !important;
+            border-radius: 5px;
         }
         .server-card {
             transition: transform 0.2s;
@@ -71,85 +75,101 @@ if (!file_exists(SERVERS_FILE)) {
             font-size: 0.9em;
             line-height: 25px;
         }
+        @media (max-width: 768px) {
+            .navbar-nav {
+                flex-direction: row;
+                justify-content: space-around;
+                width: 100%;
+            }
+            .nav-item {
+                margin: 0 5px;
+            }
+            .nav-link {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+        }
     </style>
->>>>>>> REPLACE
 </head>
 <body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- 侧边栏 -->
-            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
-                <div class="position-sticky pt-3">
-                    <h5 class="text-center mb-4">SB Manager</h5>
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link active" href="#" data-tab="users">
-                                <i class="bi bi-people"></i> 用户配置
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" data-tab="servers">
-                                <i class="bi bi-server"></i> 服务器配置
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="logout.php">
-                                <i class="bi bi-box-arrow-right"></i> 退出登录
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
-
-            <!-- 主内容区 -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2" id="page-title">用户配置</h1>
-                </div>
-
-                <!-- 用户配置页面 -->
-                <div id="users-tab" class="tab-content">
-                    <div class="d-flex justify-content-between mb-3">
-                        <h3>Trojan用户管理</h3>
-                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
-                            <i class="bi bi-plus"></i> 添加用户
-                        </button>
-                    </div>
-                    
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>用户名</th>
-                                    <th>密码</th>
-                                    <th>到期时间</th>
-                                    <th>状态</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="users-table">
-                                <!-- 用户数据将通过AJAX加载 -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- 服务器配置页面 -->
-                <div id="servers-tab" class="tab-content" style="display: none;">
-                    <div class="d-flex justify-content-between mb-3">
-                        <h3>服务器管理</h3>
-                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addServerModal">
-                            <i class="bi bi-plus"></i> 添加服务器
-                        </button>
-                    </div>
-                    
-                    <div class="row" id="servers-container">
-                        <!-- 服务器卡片将通过AJAX加载 -->
-                    </div>
-                </div>
-            </main>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar navbar-expand-md navbar-light fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">SB Manager</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" data-tab="users">
+                            <i class="bi bi-people"></i> 用户配置
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-tab="servers">
+                            <i class="bi bi-server"></i> 服务器配置
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="logout.php">
+                            <i class="bi bi-box-arrow-right"></i> 退出登录
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </div>
-    </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <main class="container-fluid mt-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <h1 class="h2" id="page-title">用户配置</h1>
+        </div>
+
+        <!-- 用户配置页面 -->
+        <div id="users-tab" class="tab-content">
+            <div class="d-flex justify-content-between mb-3">
+                <h3>Trojan用户管理</h3>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                    <i class="bi bi-plus"></i> 添加用户
+                </button>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>用户名</th>
+                            <th>密码</th>
+                            <th>到期时间</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table">
+                        <!-- 用户数据将通过AJAX加载 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 服务器配置页面 -->
+        <div id="servers-tab" class="tab-content" style="display: none;">
+            <div class="d-flex justify-content-between mb-3">
+                <h3>服务器管理</h3>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addServerModal">
+                    <i class="bi bi-plus"></i> 添加服务器
+                </button>
+            </div>
+            
+            <div class="row" id="servers-container">
+                <!-- 服务器卡片将通过AJAX加载 -->
+            </div>
+        </div>
+    </main>
 
     <!-- 添加用户模态框 -->
     <div class="modal fade" id="addUserModal" tabindex="-1">
@@ -166,10 +186,6 @@ if (!file_exists(SERVERS_FILE)) {
                             <input type="text" class="form-control" name="username" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">密码</label>
-                            <input type="text" class="form-control" name="password" required>
-                        </div>
-                        <div class="mb-3">
                             <label class="form-label">到期日期</label>
                             <input type="date" class="form-control" name="expiry_date" required>
                         </div>
@@ -182,6 +198,7 @@ if (!file_exists(SERVERS_FILE)) {
             </div>
         </div>
     </div>
+>>>>>>> REPLACE
 
     <!-- 添加服务器模态框 -->
     <div class="modal fade" id="addServerModal" tabindex="-1">

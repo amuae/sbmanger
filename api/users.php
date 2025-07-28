@@ -124,19 +124,28 @@ function getUsers() {
 
 function addUser() {
     $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
     $expiry_date = $_POST['expiry_date'] ?? '';
     
-    if (empty($username) || empty($password) || empty($expiry_date)) {
+    if (empty($username) || empty($expiry_date)) {
         echo json_encode(['success' => false, 'message' => '参数不完整']);
         return;
     }
+    
+    // 生成24位随机密码
+    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $password = '';
+    for ($i = 0; $i < 24; $i++) {
+        $password .= $characters[random_int(0, strlen($characters) - 1)];
+    }
+    
+    // 格式化用户名：用户名+到期时间
+    $formatted_username = $username . $expiry_date;
     
     $usersData = json_decode(file_get_contents(USERS_FILE), true);
     
     // 检查用户名是否已存在
     foreach ($usersData['users'] as $user) {
-        if ($user['name'] === $username) {
+        if ($user['name'] === $formatted_username) {
             echo json_encode(['success' => false, 'message' => '用户名已存在']);
             return;
         }
@@ -144,7 +153,7 @@ function addUser() {
     
     // 添加新用户
     $usersData['users'][] = [
-        'name' => $username,
+        'name' => $formatted_username,
         'password' => $password,
         'expiry_date' => $expiry_date
     ];

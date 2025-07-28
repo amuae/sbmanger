@@ -1,6 +1,6 @@
 // 标签切换
 document.addEventListener('DOMContentLoaded', function() {
-    const navLinks = document.querySelectorAll('.nav-link[data-tab]');
+    const navLinks = document.querySelectorAll('.navbar-nav .nav-link[data-tab]');
     const tabContents = {
         'users': document.getElementById('users-tab'),
         'servers': document.getElementById('servers-tab')
