@@ -1,210 +1,233 @@
 <?php
 session_start();
 
+// 检查是否已登录
 if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
     header('Location: login.php');
     exit;
 }
 
-require_once 'config.php';
-require_once 'classes/ConfigManager.php';
-require_once 'classes/UserManager.php';
+// 默认配置文件路径
+define('CONFIG_PATH', 'data/config.json');
+define('USERS_FILE', 'data/users.json');
+define('SERVERS_FILE', 'data/servers.json');
 
-$configManager = new ConfigManager();
-$userManager = new UserManager();
-$users = $userManager->getUsers();
-$message = '';
-
-// 处理表单提交
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['action'])) {
-        switch ($_POST['action']) {
-            case 'add_user':
-                $name = $_POST['name'];
-                $expiry_date = $_POST['expiry_date'];
-                $result = $userManager->addUser($name, $expiry_date);
-                $message = $result ? '用户添加成功' : '添加用户失败';
-                break;
-                
-            case 'delete_user':
-                $password = $_POST['password'];
-                $result = $userManager->deleteUser($password);
-                $message = $result ? '用户删除成功' : '删除用户失败';
-                break;
-                
-            case 'update_config':
-                $result = $configManager->deployConfig();
-                $message = $result ? '配置已部署到所有服务器' : '部署失败';
-                break;
-        }
-        header("Location: index.php?message=" . urlencode($message));
-        exit;
-    }
+// 确保数据目录存在
+if (!is_dir('data')) {
+    mkdir('data', 0755, true);
 }
 
-// 检查过期用户
-$userManager->checkExpiredUsers();
-
-// 获取服务器列表
-$servers = $configManager->getServers();
+// 创建默认文件
+if (!file_exists(USERS_FILE)) {
+    file_put_contents(USERS_FILE, json_encode(['users' => []], JSON_PRETTY_PRINT));
+}
+if (!file_exists(SERVERS_FILE)) {
+    file_put_contents(SERVERS_FILE, json_encode(['servers' => []], JSON_PRETTY_PRINT));
+}
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sing-box 用户管理 - 主控面板</title>
+    <title>SB Manager - Sing-box配置管理器</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        body {
+        .sidebar {
+            min-height: 100vh;
             background-color: #f8f9fa;
         }
-        .card {
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-            border: 1px solid rgba(0, 0, 0, 0.125);
+        .nav-link.active {
+            background-color: #0d6efd;
+            color: white !important;
         }
-        .table-responsive {
-            max-height: 500px;
-            overflow-y: auto;
+        .server-card {
+            transition: transform 0.2s;
+        }
+        .server-card:hover {
+            transform: translateY(-2px);
+        }
+        .status-online {
+            color: #28a745;
+        }
+        .status-offline {
+            color: #dc3545;
+        }
+        .log-entry {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        .log-container {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        .progress {
+            height: 25px;
+        }
+        .progress-bar {
+            font-size: 0.9em;
+            line-height: 25px;
         }
     </style>
+>>>>>>> REPLACE
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="index.php">
-                <i class="bi bi-shield-check"></i> Sing-box 管理面板
-            </a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link active" href="index.php">用户信息</a>
-                <a class="nav-link" href="servers.php">服务器管理</a>
-                <a class="nav-link" href="dashboard.php">服务器监控</a>
-                <a class="nav-link" href="logout.php">
-                    <i class="bi bi-box-arrow-right"></i> 退出登录
-                </a>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <h5 class="text-center mb-4">SB Manager</h5>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#" data-tab="users">
+                                <i class="bi bi-people"></i> 用户配置
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-tab="servers">
+                                <i class="bi bi-server"></i> 服务器配置
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="logout.php">
+                                <i class="bi bi-box-arrow-right"></i> 退出登录
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- 主内容区 -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2" id="page-title">用户配置</h1>
+                </div>
+
+                <!-- 用户配置页面 -->
+                <div id="users-tab" class="tab-content">
+                    <div class="d-flex justify-content-between mb-3">
+                        <h3>Trojan用户管理</h3>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                            <i class="bi bi-plus"></i> 添加用户
+                        </button>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>用户名</th>
+                                    <th>密码</th>
+                                    <th>到期时间</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table">
+                                <!-- 用户数据将通过AJAX加载 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 服务器配置页面 -->
+                <div id="servers-tab" class="tab-content" style="display: none;">
+                    <div class="d-flex justify-content-between mb-3">
+                        <h3>服务器管理</h3>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addServerModal">
+                            <i class="bi bi-plus"></i> 添加服务器
+                        </button>
+                    </div>
+                    
+                    <div class="row" id="servers-container">
+                        <!-- 服务器卡片将通过AJAX加载 -->
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 添加用户模态框 -->
+    <div class="modal fade" id="addUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">添加用户</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addUserForm">
+                        <div class="mb-3">
+                            <label class="form-label">用户名</label>
+                            <input type="text" class="form-control" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">密码</label>
+                            <input type="text" class="form-control" name="password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">到期日期</label>
+                            <input type="date" class="form-control" name="expiry_date" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="addUser()">添加</button>
+                </div>
             </div>
         </div>
-    </nav>
+    </div>
 
-    <div class="container mt-4">
-        <?php if ($message): ?>
-            <div class="alert alert-info alert-dismissible fade show" role="alert">
-                <?php echo htmlspecialchars($message); ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        <?php endif; ?>
-
-        <div class="row">
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">添加新用户</h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="POST">
-                            <input type="hidden" name="action" value="add_user">
-                            <div class="mb-3">
-                                <label for="name" class="form-label">备注名称</label>
-                                <input type="text" class="form-control" id="name" name="name" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="expiry_date" class="form-label">到期时间</label>
-                                <input type="date" class="form-control" id="expiry_date" name="expiry_date" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="bi bi-plus-circle"></i> 添加用户
-                            </button>
-                        </form>
-                    </div>
+    <!-- 添加服务器模态框 -->
+    <div class="modal fade" id="addServerModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">添加服务器</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-
-                <div class="card mt-3">
-                    <div class="card-header">
-                        <h5 class="mb-0">配置管理</h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="POST" onsubmit="return confirm('确定要部署配置到所有服务器吗？')">
-                            <input type="hidden" name="action" value="update_config">
-                            <button type="submit" class="btn btn-success w-100">
-                                <i class="bi bi-cloud-upload"></i> 部署配置到所有服务器
-                            </button>
-                        </form>
-                        <small class="text-muted mt-2 d-block">
-                            当前服务器数量: <?php echo count($servers); ?>
-                        </small>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-8">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">用户列表</h5>
-                        <span class="badge bg-secondary"><?php echo count($users); ?> 个用户</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>备注</th>
-                                        <th>密码</th>
-                                        <th>到期时间</th>
-                                        <th>状态</th>
-                                        <th>操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($users as $user): ?>
-                                        <?php 
-                                        $expiry = new DateTime($user['expiry']);
-                                        $now = new DateTime();
-                                        $isExpired = $expiry < $now;
-                                        ?>
-                                        <tr class="<?php echo $isExpired ? 'table-danger' : ''; ?>">
-                                            <td><?php echo htmlspecialchars($user['name']); ?></td>
-                                            <td>
-                                                <small class="font-monospace"><?php echo $user['password']; ?></small>
-                                                <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('<?php echo $user['password']; ?>')">
-                                                    <i class="bi bi-clipboard"></i>
-                                                </button>
-                                            </td>
-                                            <td><?php echo $user['expiry']; ?></td>
-                                            <td>
-                                                <?php if ($isExpired): ?>
-                                                    <span class="badge bg-danger">已过期</span>
-                                                <?php else: ?>
-                                                    <span class="badge bg-success">有效</span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td>
-                                                <form method="POST" style="display: inline;" onsubmit="return confirm('确定要删除此用户吗？')">
-                                                    <input type="hidden" name="action" value="delete_user">
-                                                    <input type="hidden" name="password" value="<?php echo $user['password']; ?>">
-                                                    <button type="submit" class="btn btn-sm btn-danger">
-                                                        <i class="bi bi-trash"></i>
-                                                    </button>
-                                                </form>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
+                <div class="modal-body">
+                    <form id="addServerForm">
+                        <div class="mb-3">
+                            <label class="form-label">备注</label>
+                            <input type="text" class="form-control" name="remark" required>
                         </div>
-                    </div>
+                        <div class="mb-3">
+                            <label class="form-label">IP地址</label>
+                            <input type="text" class="form-control" name="ip" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">端口</label>
+                            <input type="number" class="form-control" name="port" value="22" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">用户名</label>
+                            <input type="text" class="form-control" name="username" value="root" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">密码</label>
+                            <input type="password" class="form-control" name="password">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">或使用密钥</label>
+                            <textarea class="form-control" name="key" rows="3" placeholder="SSH私钥内容"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="addServer()">添加</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                alert('密码已复制到剪贴板');
-            });
-        }
-    </script>
+    <script src="js/app.js"></script>
 </body>
 </html>
