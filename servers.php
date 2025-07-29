@@ -1,4 +1,6 @@
 <?php
+session_start();
+
 // 服务器配置文件
 define('SERVERS_FILE', 'servers.json');
 
@@ -266,38 +268,3 @@ foreach ($servers as $server) {
         </div>
     </div>
 </div>
-
-<script>
-// 处理单个服务器分发
-document.addEventListener('DOMContentLoaded', function() {
-    const distributeForms = document.querySelectorAll('form[method="POST"]');
-    distributeForms.forEach(form => {
-        form.addEventListener('submit', function(e) {
-            if (this.querySelector('input[name="action"][value="distribute_single"]')) {
-                e.preventDefault();
-                const serverId = this.querySelector('input[name="server_id"]').value;
-                
-                fetch('distribute.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: 'action=distribute_single&server_id=' + serverId
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('配置分发成功！');
-                        location.reload();
-                    } else {
-                        alert('分发失败: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    alert('请求失败: ' + error);
-                });
-            }
-        });
-    });
-});
-</script>
