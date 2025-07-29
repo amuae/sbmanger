@@ -14,7 +14,7 @@ function getServers() {
 
 // 保存服务器列表
 function saveServers($servers) {
-    file_put_contents(SERVERS_FILE, json_encode($servers, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    return file_put_contents(SERVERS_FILE, json_encode($servers, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 }
 
 // 测试SSH连接
@@ -102,8 +102,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             
             if ($server['name'] && $server['ip'] && $server['port'] && $server['username'] && $server['password']) {
                 $servers[] = $server;
-                saveServers($servers);
-                $_SESSION['message'] = '服务器添加成功！';
+                if (saveServers($servers)) {
+                    $_SESSION['message'] = '服务器添加成功！';
+                } else {
+                    $_SESSION['message'] = '服务器添加失败，请检查文件权限！';
+                }
+            } else {
+                $_SESSION['message'] = '请填写完整的服务器信息！';
             }
             break;
             
@@ -113,8 +118,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 return $server['id'] !== $serverId;
             });
             $servers = array_values($servers);
-            saveServers($servers);
-            $_SESSION['message'] = '服务器删除成功！';
+            if (saveServers($servers)) {
+                $_SESSION['message'] = '服务器删除成功！';
+            } else {
+                $_SESSION['message'] = '服务器删除失败！';
+            }
             break;
             
         case 'test_connection':
@@ -123,6 +131,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 if ($server['id'] === $serverId) {
                     $isConnected = testSSHConnection($server);
                     $_SESSION['message'] = $isConnected ? 'SSH连接成功！' : 'SSH连接失败！';
+                    break;
+                }
+            }
+            break;
+            
+        case 'distribute_single':
+            $serverId = $_POST['server_id'];
+            foreach ($servers as $server) {
+                if ($server['id'] === $serverId) {
+                    $result = distributeConfig($server);
+                    if ($result['success']) {
+                        restartSingBox($server);
+                        $_SESSION['message'] = '配置分发成功！';
+                    } else {
+                        $_SESSION['message'] = '分发失败: ' . $result['message'];
+                    }
                     break;
                 }
             }
