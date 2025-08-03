@@ -27,4 +27,4 @@ CREATE TABLE IF NOT EXISTS servers (
 );
 
 -- 插入默认管理员用户 (admin/admin123)
-INSERT OR IGNORE INTO users (username, password) VALUES ('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi');
+INSERT OR IGNORE INTO users (username, password) VALUES ('admin', '$2y$10$ydvs7TUvBfh/1Qz8RG1R1OsjLhp1q9QMmMMtrclNcf6DPFqqw.RTS');

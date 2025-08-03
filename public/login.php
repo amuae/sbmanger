@@ -41,9 +41,6 @@ require_once __DIR__ . '/../includes/auth.php';
                 </div>
                 <button type="submit" class="btn btn-primary w-100">登录</button>
             </form>
-            <p class="text-center mt-3 text-muted">
-                默认用户名: admin, 密码: admin123
-            </p>
         </div>
     </div>
 </body>
