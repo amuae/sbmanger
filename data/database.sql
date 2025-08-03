@@ -1,0 +1,30 @@
+-- 用户表
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 用户管理表
+CREATE TABLE IF NOT EXISTS trojan_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    password TEXT NOT NULL,
+    expiry_date DATE NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 服务器管理表
+CREATE TABLE IF NOT EXISTS servers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    ip TEXT NOT NULL,
+    port INTEGER DEFAULT 22,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 插入默认管理员用户 (admin/admin123)
+INSERT OR IGNORE INTO users (username, password) VALUES ('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi');

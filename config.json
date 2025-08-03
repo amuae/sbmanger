@@ -1,0 +1,23 @@
+{
+    "inbounds": [
+        {
+            "type": "trojan",
+            "tag": "trojan-1",
+            "listen": "::",
+            "listen_port": 5505,
+            "users": [],
+            "tls": {
+                "enabled": true,
+                "server_name": "down.dingtalk.com",
+                "certificate_path": "/root/sing-box/server.crt",
+                "key_path": "/root/sing-box/server.key"
+            }
+        }
+    ],
+    "outbounds": [
+        {
+            "type": "direct",
+            "tag": "direct"
+        }
+    ]
+}
